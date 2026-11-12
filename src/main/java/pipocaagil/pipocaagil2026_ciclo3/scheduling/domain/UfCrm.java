@@ -1,0 +1,31 @@
+package pipocaagil.pipocaagil2026_ciclo3.scheduling.domain;
+
+public enum UfCrm {
+    AC,
+    AL,
+    AP,
+    AM,
+    BA,
+    CE,
+    DF,
+    ES,
+    GO,
+    MA,
+    MT,
+    MS,
+    MG,
+    PA,
+    PB,
+    PR,
+    PE,
+    PI,
+    RJ,
+    RN,
+    RS,
+    RO,
+    RR,
+    SC,
+    SP,
+    SE,
+    TO
+}

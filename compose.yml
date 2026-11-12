@@ -1,0 +1,29 @@
+services:
+  pipocaagil-database:
+    image: postgres:18.3
+    environment:
+      POSTGRES_DB: pipocaagil
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - pipocaagil_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d pipocaagil"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  agenda-locking:
+    image: redis:8.6
+    ports:
+      - "6382:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pipocaagil_data:
