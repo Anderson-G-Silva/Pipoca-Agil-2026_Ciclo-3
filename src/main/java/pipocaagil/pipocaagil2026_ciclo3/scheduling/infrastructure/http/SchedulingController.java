@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import pipocaagil.pipocaagil2026_ciclo3.auth.domain.User;
+import pipocaagil.pipocaagil2026_ciclo3.auth.infrastructure.security.AuthenticatedUserProvider;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.application.ConfirmUseCase;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.application.FindAvailableSlotsUseCase;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.application.HoldSlotUseCase;
@@ -29,6 +33,7 @@ import pipocaagil.pipocaagil2026_ciclo3.scheduling.infrastructure.http.request.P
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.infrastructure.http.response.HoldResponse;
 import pipocaagil.pipocaagil2026_ciclo3.util.mapper.MapperAgenda;
 
+import java.nio.file.attribute.UserPrincipal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -44,6 +49,7 @@ public class SchedulingController {
     private final HoldSlotUseCase holdSlotUseCase;
     private final ConfirmUseCase confirmUseCase;
     private final MapperAgenda mapperAgenda;
+    private final AuthenticatedUserProvider authenticatedUser;
 
 
 
@@ -53,7 +59,8 @@ public class SchedulingController {
                                 FindAvailableSlotsUseCase findAvailableSlotsUseCase,
                                 HoldSlotUseCase holdSlotUseCase,
                                 ConfirmUseCase confirmUseCase,
-                                MapperAgenda mapperAgenda) {
+                                MapperAgenda mapperAgenda,
+                                AuthenticatedUserProvider authenticatedUser) {
         this.savePatienteUseCase = savePatienteUseCase;
         this.saveDoctorUseCase = saveDoctorUseCase;
         this.openAgendaUseCase = openAgendaUseCase;
@@ -61,6 +68,7 @@ public class SchedulingController {
         this.holdSlotUseCase = holdSlotUseCase;
         this.confirmUseCase = confirmUseCase;
         this.mapperAgenda = mapperAgenda;
+        this.authenticatedUser = authenticatedUser;
     }
 
     @Operation(
@@ -82,6 +90,7 @@ public class SchedulingController {
             description = "Cria o cadastro de um novo médico e salva no banco de dados."
     )
     @PostMapping("/doctor/save")
+    @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public Doctor saveDoctor(@Valid @RequestBody DoctorRequest request) {
         return saveDoctorUseCase.execute(request);
@@ -92,6 +101,7 @@ public class SchedulingController {
             description = "Cria as agendas de datas e horários por médico - período máximo de 90 dias"
     )
     @PostMapping("/agenda/open")
+    @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public void openAgenda(@Valid @RequestBody OpenAgendaRequest request) {
         openAgendaUseCase.execute(mapperAgenda.entityToDomain(request));
@@ -114,8 +124,10 @@ public class SchedulingController {
             description = "Realiza a reserva da agenda por 60 segundos ou até o paciente confirmar a agenda"
     )
     @PostMapping ("/agenda/slots/{id}/hold")
+    @PreAuthorize("hasAnyRole('PATIENT', 'COMPANION')")
     @ResponseStatus(HttpStatus.OK)
-    public HoldResponse hold(@PathVariable Long id, @RequestParam UUID patienteId) {
+    public HoldResponse hold(@PathVariable Long id) {
+        UUID patienteId = authenticatedUser.getCurrentPatientId();
         Instant expiresAt = holdSlotUseCase.execute(id,patienteId);
         return new HoldResponse(id, expiresAt, Agenda.HOLD_DURATION.toSeconds());
     }
@@ -125,8 +137,10 @@ public class SchedulingController {
             description = "Realiza a confirmação da agenda que foi reservada"
     )
     @PostMapping ("/agenda/slots/{id}/confirmation")
+    @PreAuthorize("hasAnyRole('PATIENT', 'COMPANION')")
     @ResponseStatus(HttpStatus.CREATED)
-    public void confirm (@PathVariable Long id, @RequestParam UUID patienteId){
+    public void confirm (@PathVariable Long id){
+        UUID patienteId = authenticatedUser.getCurrentPatientId();
         confirmUseCase.execute(id,patienteId);
     }
 

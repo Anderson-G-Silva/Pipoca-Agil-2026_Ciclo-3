@@ -61,6 +61,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errors);
     }
 
+    @ExceptionHandler(DoctorNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleDoctorNotFound(DoctorNotFoundException ex) {
+        return Map.of("message", ex.getMessage());
+    }
+
 
     /*@ExceptionHandler(DoctorAlreadyExistsException.class)
     @ResponseStatus(HttpStatus.CONFLICT)

@@ -2,6 +2,7 @@ package pipocaagil.pipocaagil2026_ciclo3.scheduling.infrastructure.persistence.e
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -15,6 +16,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.domain.CareModality;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.domain.StatusAgenda;
 
@@ -23,6 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
 
+@EntityListeners(AuditingEntityListener.class)
 @Entity
 @Table(name = "agenda", uniqueConstraints = @UniqueConstraint(name = "uk_doctor_date_time", columnNames = {"doctorId", "slotDate","slotTime"}))
 @Data
@@ -63,4 +70,22 @@ public class AgendaEntity {
     StatusAgenda status;
 
     Instant heldUntil;
+
+    @CreatedBy
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(updatable = false)
+    private UUID createdBy;
+
+    @CreatedDate
+    @Column(updatable = false)
+    private Instant createdAt;
+
+    @LastModifiedBy
+    @JdbcTypeCode(SqlTypes.CHAR)
+    private UUID updatedBy;
+
+    @LastModifiedDate
+    private Instant updatedAt;
+
+
 }

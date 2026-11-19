@@ -1,5 +1,6 @@
 package pipocaagil.pipocaagil2026_ciclo3.scheduling.infrastructure.persistence.repository;
 
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.domain.Agenda;
@@ -20,27 +21,40 @@ import java.util.UUID;
 public class JpaAgendaRepository implements AgendaRepository {
     private final AgendaEntityRepository agendaEntityRepository;
     private final JdbcTemplate jdbc;
+    private final AuditorAware<UUID> auditor;
 
-    public JpaAgendaRepository(AgendaEntityRepository agendaEntityRepository,  JdbcTemplate jdbc) {
+    public JpaAgendaRepository(AgendaEntityRepository agendaEntityRepository,  JdbcTemplate jdbc, AuditorAware<UUID> auditor) {
         this.agendaEntityRepository = agendaEntityRepository;
         this.jdbc = jdbc;
+        this.auditor = auditor;
     }
 
     private static final int BATCH_SIZE = 500;
 
     private static final String ZONE = "America/Sao_Paulo";
 
+    private UUID actor() {
+        return auditor.getCurrentAuditor().orElse(null);
+    }
+
+    private static String str(UUID id) {
+        return id == null ? null : id.toString();
+    }
+
     private static final String INSERT_SQL = """
-        INSERT INTO agenda (slot_date, slot_time, modality, doctor_id, status)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT (doctor_id, slot_date, slot_time) DO NOTHING
-        """;
+    INSERT INTO agenda (slot_date, slot_time, modality, doctor_id, status,
+                        created_at, created_by, updated_at, updated_by)
+    VALUES (?, ?, ?, ?, ?, now(), ?, now(), ?)
+    ON CONFLICT (doctor_id, slot_date, slot_time) DO NOTHING
+    """;
 
     private static final String HOLD_SQL = """
     UPDATE agenda
        SET status = 'EM_RESERVA',
            patient_id = ?,
-           held_until = now() + (? * interval '1 second')
+           held_until = now() + (? * interval '1 second'),
+           updated_at = now(),
+           updated_by = ?
      WHERE id = ?
        AND ((slot_date + slot_time) AT TIME ZONE '%s') > now()
        AND ( status = 'DISPONIVEL'
@@ -50,14 +64,20 @@ public class JpaAgendaRepository implements AgendaRepository {
 
     private static final String CONFIRM_SQL = """
     UPDATE agenda
-       SET status = 'AGENDADO', held_until = NULL
+       SET status = 'AGENDADO', 
+           held_until = NULL,
+           updated_at = now(),
+           updated_by = ?
      WHERE id = ? AND status = 'EM_RESERVA'
        AND patient_id = ? AND held_until > now()
     """;
 
     private static final String RELEASE_SQL = """
     UPDATE agenda
-       SET status = 'DISPONIVEL', patient_id = NULL, held_until = NULL
+       SET status = 'DISPONIVEL', patient_id = NULL, 
+           held_until = NULL, 
+           updated_at = now(),
+           updated_by = ?
      WHERE id = ? AND status = 'EM_RESERVA' AND patient_id = ?
     """;
 
@@ -79,6 +99,7 @@ public class JpaAgendaRepository implements AgendaRepository {
     @Override
     public int saveIgnoringExisting(List<Agenda> slots) {
         if (slots.isEmpty()) return 0;
+        String actor = str(actor());
 
         int[][] results = jdbc.batchUpdate(INSERT_SQL, slots, BATCH_SIZE, (ps, slot) -> {
             ps.setObject(1, slot.getSlotDate());
@@ -86,6 +107,8 @@ public class JpaAgendaRepository implements AgendaRepository {
             ps.setString(3, slot.getModality().name());
             ps.setString(4, slot.getDoctorId().toString());
             ps.setString(5, slot.getStatus().name());
+            ps.setString(6, actor);           // created_by
+            ps.setString(7, actor);           // updated_by
         });
 
         int created = 0;
@@ -102,18 +125,18 @@ public class JpaAgendaRepository implements AgendaRepository {
     public Optional<Instant> hold(Long slotId, UUID patientId, Duration holdTime) {
         List<Instant> result = jdbc.query(HOLD_SQL,
                 (rs, i) -> rs.getObject("held_until", OffsetDateTime.class).toInstant(),
-                patientId.toString(), holdTime.toSeconds(), slotId, patientId.toString());
+                patientId.toString(), holdTime.toSeconds(), str(actor()), slotId, patientId.toString());
         return result.stream().findFirst();
     }
 
     @Override
     public boolean confirm(Long slotId, UUID patientId) {
-        return jdbc.update(CONFIRM_SQL, slotId, patientId.toString()) == 1;
+        return jdbc.update(CONFIRM_SQL, str(actor()), slotId, patientId.toString()) == 1;
     }
 
     @Override
     public boolean release(Long slotId, UUID patientId) {
-        return jdbc.update(RELEASE_SQL, slotId, patientId.toString()) == 1;
+        return jdbc.update(RELEASE_SQL, str(actor()), slotId, patientId.toString()) == 1;
     }
 
     @Override

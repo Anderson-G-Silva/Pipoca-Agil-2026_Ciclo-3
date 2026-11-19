@@ -32,13 +32,11 @@ public class SavePatienteUseCase {
                 request.landPhone(),
                 request.pwd()
         );
-
-
         patientRepository.save(patient);
-        System.out.println(patient);
+
         UserRequest  userRequest = new UserRequest(
-                patient.getName(),
-                patient.getEmail(),
+                request.name(),
+                request.email(),
                 request.birthDate(),
                 null,
                 PATIENT,

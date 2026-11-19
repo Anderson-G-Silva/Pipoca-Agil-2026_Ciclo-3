@@ -2,6 +2,7 @@ package pipocaagil.pipocaagil2026_ciclo3.scheduling.application;
 
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import pipocaagil.pipocaagil2026_ciclo3.exception.DoctorNotFoundException;
 import pipocaagil.pipocaagil2026_ciclo3.exception.InvalidAgendaException;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.application.request.DaysOfWeek;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.application.request.OpenAgenda;
@@ -9,9 +10,7 @@ import pipocaagil.pipocaagil2026_ciclo3.scheduling.application.request.OpenAgend
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.application.request.ServiceWindow;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.domain.Agenda;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.domain.AgendaRepository;
-import pipocaagil.pipocaagil2026_ciclo3.scheduling.domain.Doctor;
 import pipocaagil.pipocaagil2026_ciclo3.scheduling.domain.DoctorRepository;
-import pipocaagil.pipocaagil2026_ciclo3.scheduling.infrastructure.http.request.OpenAgendaRequest;
 
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -42,7 +41,9 @@ public class OpenAgendaUseCase {
     public OpenAgendaResult execute(OpenAgenda request) {
         validade(request);
 
-        UUID doctorId = doctorRepository.findByCRMAndUF(request.CRM(), request.UF()).getId().id();
+        UUID doctorId = doctorRepository.findByCRMAndUF(request.CRM(), request.UF())
+                .orElseThrow(() -> new DoctorNotFoundException(request.CRM(), request.UF()))
+                .getId().id();
 
         Set<DayOfWeek> days = request.daysOfWeek()
                 .stream()
@@ -52,7 +53,7 @@ public class OpenAgendaUseCase {
         List<Agenda> slots = generateSlots (doctorId, request, days);
         int created = agendaRepository.saveIgnoringExisting(slots);
 
-        return null;
+        return new OpenAgendaResult(slots.size(), created, slots.size() - created);
     }
 
     private List<Agenda> generateSlots(UUID doctorId, OpenAgenda request, Set<DayOfWeek> days) {

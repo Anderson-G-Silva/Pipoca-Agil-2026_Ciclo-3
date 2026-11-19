@@ -11,6 +11,7 @@ import pipocaagil.pipocaagil2026_ciclo3.scheduling.infrastructure.persistence.en
 import pipocaagil.pipocaagil2026_ciclo3.util.mapper.MapperDoctor;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class JpaDoctorRepository implements DoctorRepository {
@@ -44,9 +45,10 @@ public class JpaDoctorRepository implements DoctorRepository {
     }
 
     @Override
-    public Doctor findByCRMAndUF(String CRM, UfCrm UF) {
+    public Optional<Doctor> findByCRMAndUF(String CRM, UfCrm UF) {
         DoctorEntity entity = doctorEntityRepository.findByCRMAndUF(CRM, UF);
-        return mapper.entityToDomain(entity);
+        return Optional.ofNullable(entity).map(mapper::entityToDomain);
+
     }
 
     @Override

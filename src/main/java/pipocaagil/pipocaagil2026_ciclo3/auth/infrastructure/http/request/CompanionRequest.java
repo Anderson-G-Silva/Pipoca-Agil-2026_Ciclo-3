@@ -1,7 +1,6 @@
 package pipocaagil.pipocaagil2026_ciclo3.auth.infrastructure.http.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;

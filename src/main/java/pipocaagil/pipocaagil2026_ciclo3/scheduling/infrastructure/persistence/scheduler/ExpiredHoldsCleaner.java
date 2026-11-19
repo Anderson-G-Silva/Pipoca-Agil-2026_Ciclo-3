@@ -15,7 +15,7 @@ public class ExpiredHoldsCleaner {
     public void release() {
         jdbc.update("""
             UPDATE agenda
-               SET status = 'DISPONIVEL', patient_id = NULL, held_until = NULL
+               SET status = 'DISPONIVEL', patient_id = NULL, held_until = NULL, updated_at = now(), updated_by = NULL
              WHERE status = 'EM_RESERVA' AND held_until <= now()
             """);
     }
